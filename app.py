@@ -2,8 +2,8 @@ from flask import Flask
 from flask_jwt_extended import JWTManager 
 from flask_restful import Api
 from config import Config
-from resources.user import UserRegisterResourse 
-from resources.user import UseLoginResource , UserLogoutResource ,jwt_blacklist
+from resources.user import UserRegisterResource 
+from resources.user import UserLoginResource , UserLogoutResource ,jwt_blacklist
 
 
 app  = Flask(__name__)
@@ -23,8 +23,8 @@ def check_if_token_is_revoked(jwt_header, jwt_payload):
     jti = jwt_payload['jti']
     return jti in jwt_blacklist
 
-api.add_resource(UserRegisterResourse,'/users/register')
-api.add_resource(UseLoginResource,'/users/login')
+api.add_resource(UserRegisterResource,'/users/register')
+api.add_resource(UserLoginResource,'/users/login')
 api.add_resource(UserLogoutResource,'/users/logout')
 
 

@@ -1,7 +1,7 @@
 import datetime
 from http import HTTPStatus
 from flask import request
-from flask_jwt_extended import create_access_token, get_jwt, jwt_required 
+from flask_jwt_extended import create_access_token, get_jwt, jwt_required
 from flask_restful import Resource
 from mysql.connector.errors import Error
 from mysql_connection import get_connection
@@ -11,35 +11,41 @@ from email_validator import validate_email, EmailNotValidError
 
 from utils import check_password, hash_password
 
-class UserRegisterResourse(Resource) :
-    def post(self):
-        #1. 클라이언트로 부터 넘어온 데이터를 받는다.
-        #         {
+class UserRegisterResource(Resource) :
+    def post(self) :
+        
+        # {
+        #     "username": "홍길동",
         #     "email": "abc@naver.com",
-        #     "password": "1234",
-        #     "name": "홍길동",  
-        #     "gender":"Male"
+        #     "password": "1234"
         # }
+
+        # 1. 클라이언트가 body 에 보내준 json 을 받아온다.
         data = request.get_json()
 
-        # 2. 이메일 형식 체크
-        try: 
-            validate_email(data['email'])
+        # 2. 이메일 주소형식이 제대로 된 주소형식인지
+        # 확인하는 코드 작성.
 
-        except EmailNotValidError as e :
-            return {'error':str(e),'error_no':1}, 400
-
-        # 3. 비밀번호 길이 체크 
+        try :
+            validate_email( data['email'] )
+        except EmailNotValidError as e:
+            # email is not valid, exception message is human-readable
+            print(str(e))
+            return {'error' : str(e)} , 400        
+        
+        # 3. 비밀번호의 길이가 유효한지 체크한다.
+        # 비번길이는 4자리 이상, 12자리 이하로만!
         if len(data['password']) < 4 or len(data['password']) > 12 :
-            return {'error' : '비밀번로 길이 확인하세요','error_no':2}, 400
+            return {'error' : '비번길이확인하세요'}, 400
 
+        # 4. 비밀번호를 암호화 한다.
+        # data['password']
 
-        # 4. 비밀번호 암호화
         hashed_password = hash_password( data['password'] )
+
         print(hashed_password)
 
-        # 5. 데이터 베이스에 저장
-       
+        # 5. 데이터베이스에 회원정보를 저장한다!!
         try :
             # 데이터 insert 
             # 1. DB에 연결
@@ -47,11 +53,11 @@ class UserRegisterResourse(Resource) :
 
             # 2. 쿼리문 만들기
             query = '''insert into user
-                    (email, password, name ,gender)
+                    (email, password,name,gender)
                     values
-                    (%s, %s , %s, %s);'''
+                    (%s, %s , %s ,%s);'''
             
-            record = ( data['email'],hashed_password,data['name'],data['gender'] )
+            record = (data['email'],hashed_password ,data['name'] ,data['gender'])
 
             # 3. 커서를 가져온다.
             cursor = connection.cursor()
@@ -73,25 +79,31 @@ class UserRegisterResourse(Resource) :
             print(e)
             cursor.close()
             connection.close()
-            return {"error" : str(e),'error-no':3}, 503
+            return {"error" : str(e)}, 503
 
-        # 6. 억세스 토큰을 생성해서, 클라이언트에 응답해준다.
-
+        # user_id 를 바로 보내면 안되고,
+        # JWT 로 암호화 해서 보내준다.
+        # 암호화 하는 방법
         access_token = create_access_token(user_id)
 
         return {'result' : 'success', 
                 'access_token' : access_token }, 200
-    
-class UseLoginResource(Resource):
-    def post(self):
-        # 1. 클라이언트로 부터 데이터를 받아온다 .
-        #         {
+
+
+class UserLoginResource(Resource) :
+
+    def post(self) :
+        # 1. 클라이언트로부터 body로 넘어온 데이터를 받아온다.
+        # {
         #     "email": "abc@naver.com",
         #     "password": "1234"
         # }
+
         data = request.get_json()
-        
-        # 2. 이 이메일로, 데이터 베이스에서 셀렉트한다.
+
+        # 2. 이메일로, DB에 이 이메일과 일치하는 데이터를
+        # 가져온다.
+
         try :
             connection = get_connection()
 
@@ -115,6 +127,11 @@ class UseLoginResource(Resource):
             # 파이썬의 datetime 으로 자동 변경된다.
             # 문제는! 이데이터를 json 으로 바로 보낼수 없으므로,
             # 문자열로 바꿔서 다시 저장해서 보낸다.
+            i = 0
+            for record in result_list :
+                result_list[i]['created_at'] = record['created_at'].isoformat()
+                result_list[i]['updated_at'] = record['updated_at'].isoformat()
+                i = i + 1                
 
             cursor.close()
             connection.close()
@@ -133,10 +150,9 @@ class UseLoginResource(Resource):
         # 되어 있지 않은 이메일이다.
 
         if len(result_list) != 1 :
-            return {'error' : '회원가입이 안된 이메일입니다.','error_no':6}, 400
+            return {'error' : '회원가입이 안된 이메일입니다.'}, 400
 
         # 4. 비밀번호가 맞는지 확인한다.
-        # 디비에 저장되어잆는 유저 정보 
         user_info = result_list[0]
 
         # data['password'] 와 user_info['password']를 비교
@@ -146,12 +162,11 @@ class UseLoginResource(Resource):
         if check == False :
             return {'error' : '비밀번호가 맞지 않습니다.'}
 
-        # jwt 억세스 토큰을 생성해서 리턴해준다.
         access_token = create_access_token( user_info['id'])
 
         return {'result' : 'success', 
                 'access_token' : access_token}, 200
-    
+
 
 jwt_blacklist = set()
 
