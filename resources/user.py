@@ -11,14 +11,16 @@ from email_validator import validate_email, EmailNotValidError
 
 from utils import check_password, hash_password
 
+
 class UserRegisterResource(Resource) :
     def post(self) :
         
-        # {
-        #     "username": "홍길동",
-        #     "email": "abc@naver.com",
-        #     "password": "1234"
-        # }
+    #    {
+    #         "email": "abc@naver.com",
+    #         "password": "1234",
+    #         "name": "홍길동",
+    #         "gender" : "Male"
+    #     }
 
         # 1. 클라이언트가 body 에 보내준 json 을 받아온다.
         data = request.get_json()
@@ -53,11 +55,12 @@ class UserRegisterResource(Resource) :
 
             # 2. 쿼리문 만들기
             query = '''insert into user
-                    (email, password,name,gender)
+                    (name, email, password, gender)
                     values
-                    (%s, %s , %s ,%s);'''
+                    (%s, %s , %s, %s);'''
             
-            record = (data['email'],hashed_password ,data['name'] ,data['gender'])
+            record = (data['name'], data['email'], 
+                        hashed_password, data['gender'] )
 
             # 3. 커서를 가져온다.
             cursor = connection.cursor()
@@ -84,7 +87,10 @@ class UserRegisterResource(Resource) :
         # user_id 를 바로 보내면 안되고,
         # JWT 로 암호화 해서 보내준다.
         # 암호화 하는 방법
-        access_token = create_access_token(user_id)
+
+        # 억세스 토큰 만료기간 설정하는 방법
+        access_token = create_access_token(user_id, 
+                        expires_delta=datetime.timedelta(minutes=1))
 
         return {'result' : 'success', 
                 'access_token' : access_token }, 200
@@ -129,8 +135,7 @@ class UserLoginResource(Resource) :
             # 문자열로 바꿔서 다시 저장해서 보낸다.
             i = 0
             for record in result_list :
-                result_list[i]['created_at'] = record['created_at'].isoformat()
-                result_list[i]['updated_at'] = record['updated_at'].isoformat()
+                result_list[i]['createdAt'] = record['createdAt'].isoformat()
                 i = i + 1                
 
             cursor.close()
@@ -180,4 +185,5 @@ class UserLogoutResource(Resource) :
         
         jwt_blacklist.add(jti)
 
-        return {'result':'success'}, 200
+        return {'result' : 'success'}, 200
+
