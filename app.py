@@ -8,7 +8,7 @@ from resources.movie import MovieListResource,MovieResource
 from resources.user import UserLoginResource, UserLogoutResource, UserRegisterResource, jwt_blacklist
 from resources.rating import RatingListResource,MovieRatingResourse
 from resources.rating import MovieSearchResource
-from resources.recommend import MovieRecomResource
+from resources.recommend import MovieRecomResource,MovieRecomRealTimeResource
 app = Flask(__name__)
 
 # 환경변수 셋팅
@@ -35,6 +35,6 @@ api.add_resource(RatingListResource, '/rating')
 api.add_resource(MovieRatingResourse, '/movie/<int:movie_id>/rating')
 api.add_resource(MovieSearchResource,'/movie/search')
 api.add_resource(MovieRecomResource,'/movie/recommend')
-
+api.add_resource(MovieRecomRealTimeResource,'/movie/recommend')
 if __name__=="__main__" :
     app.run()
